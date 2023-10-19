@@ -122,11 +122,22 @@ const shouldSmoothScroll = <T>(options: any): options is T => {
   return (options && !options.behavior) || options.behavior === 'smooth'
 }
 
+const getScrollMargins = (target: Element) => {
+  const computedStyle = window.getComputedStyle(target)
+  return {
+    top: parseFloat(computedStyle.scrollMarginTop) || 0,
+    right: parseFloat(computedStyle.scrollMarginRight) || 0,
+    bottom: parseFloat(computedStyle.scrollMarginBottom) || 0,
+    left: parseFloat(computedStyle.scrollMarginLeft) || 0,
+  }
+}
+
 function scroll(target: Element, options?: SmoothBehaviorOptions): Promise<any>
 function scroll<T>(target: Element, options: CustomBehaviorOptions<T>): T
 function scroll(target: Element, options: StandardBehaviorOptions): void
 function scroll<T>(target: Element, options?: any) {
   const overrides = options || {}
+  const margins = getScrollMargins(target)
   if (shouldSmoothScroll<SmoothBehaviorOptions>(overrides)) {
     return scrollIntoView<Promise<SmoothScrollAction[]>>(target, {
       block: overrides.block,
@@ -140,7 +151,11 @@ function scroll<T>(target: Element, options?: any) {
             (results: Promise<SmoothScrollAction>[], { el, left, top }) => {
               const startLeft = el.scrollLeft
               const startTop = el.scrollTop
-              if (startLeft === left && startTop === top) {
+
+              const adjustedLeft = left - margins.left + margins.right
+              const adjustedTop = top - margins.top + margins.bottom
+
+              if (startLeft === adjustedLeft && startTop === adjustedTop) {
                 return results
               }
 
@@ -149,8 +164,8 @@ function scroll<T>(target: Element, options?: any) {
                 new Promise((resolve) => {
                   return smoothScroll(
                     el,
-                    left,
-                    top,
+                    adjustedLeft,
+                    adjustedTop,
                     overrides.duration,
                     overrides.ease,
                     () =>
